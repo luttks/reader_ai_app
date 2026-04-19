@@ -1,0 +1,5 @@
+Document Reader AI is a web application.
+It allows users to upload documents.
+The system will parse the text and prepare data for summarization.
+Today we only support TXT parsing end-to-end.
+

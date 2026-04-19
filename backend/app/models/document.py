@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import String, Integer, DateTime, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -20,4 +20,10 @@ class Document(Base):
         DateTime,
         default=datetime.utcnow,
         nullable=False,
+    )
+    chapters = relationship(
+        "Chapter",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="Chapter.chapter_index"
     )

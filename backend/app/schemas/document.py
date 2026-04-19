@@ -1,6 +1,8 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
 
+from app.schemas.chapter import ChapterResponse
+
 
 class DocumentCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
@@ -20,3 +22,6 @@ class DocumentResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+class DocumentDetailResponse(DocumentResponse):
+    chapters: list[ChapterResponse] = []

@@ -1,0 +1,8 @@
+CHAPTER 1
+Document Reader AI is a practical project.
+It can ingest files and extract text.
+
+CHAPTER 2
+The next step is chapter-level summarization.
+The system should be lightweight and structured.
+

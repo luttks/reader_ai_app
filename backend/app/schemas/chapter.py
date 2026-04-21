@@ -9,3 +9,12 @@ class ChapterResponse(BaseModel):
     sentence_count: int
 
     model_config = {"from_attributes": True}
+
+class ChapterListItemResponse(BaseModel):
+    id: int
+    chapter_index: int
+    title: str
+    paragraph_count: int
+    sentence_count: int
+
+    model_config = {"from_attributes": True}

@@ -1,0 +1,214 @@
+================================================================================
+BAO CAO MO TA QUY TRINH XU LY DU LIEU - DOCUMENT READER AI
+================================================================================
+
+TOM TAT QUY TRINH XU LY
+-----------------------
+Du lieu dau vao la file tai lieu (PDF, DOCX, TXT) -> qua cac buoc xu ly 
+trong backend se tao ra output la tom tat van ban (summary) voi 3 muc do:
+short (20%), medium (35%), long (50%).
+
+================================================================================
+LUONG XU LY CHI TIET
+================================================================================
+
+[BUOC 1] UPLOAD FILE
+--------------------
+File nguoi dung gui len: PDF, DOCX, hoac TXT
+
+File: backend/app/routes/upload.py
+- Endpoint: POST /upload
+- Nhan file tu nguoi dung qua UploadFile
+
+File: backend/app/services/file_service.py
+- Ham save_upload_file():
+  - Tao UUID lam ten file moi, luu vao thu muc uploads/
+  - Kiem tra dung luong (gioi han trong config)
+  - Tra ve duong dan luu file va phan mo rong (.pdf, .docx, .txt)
+
+================================================================================
+
+[BUOC 2] PARSE FILE -> RAW TEXT
+-------------------------------
+Chuyen doi file thanh van ban thuan (raw text) bang parser phu hop.
+
+File: backend/app/services/file_service.py
+- Ham parse_file():
+  - Goi ParserFactory de lay parser tuong ung voi phan mo rong
+
+File: backend/app/parsers/parser_factory.py
+- Factory pattern: dua vao phan mo rong, tra ve parser phu hop
+
+Parser theo tung loai file:
+
+  a) File .txt -> backend/app/parsers/txt_parser.py
+     - TXTParser.parse()
+     - Doc truc tiep noi dung file (utf-8, neu loi thi latin-1)
+
+  b) File .pdf -> backend/app/parsers/pdf_parser.py
+     - PDFParser.parse()
+     - Su dung thu vien fitz (PyMuPDF)
+     - Doc tung trang, trich xuat text, noi lai theo thu tu trang
+
+  c) File .docx -> backend/app/parsers/docx_parser.py
+     - DOCXParser.parse()
+     - Su dung thu vien python-docx
+     - Doc tung doan van (paragraph), loai bo dong trong
+
+================================================================================
+
+[BUOC 3] LUU DOCUMENT & CHIA CHAPTERS
+-------------------------------------
+Luu metadata vao DB, dong thoi chia van ban thanh cac chuong.
+
+File: backend/app/routes/upload.py
+- Goi create_document() trong document_service
+
+File: backend/app/services/document_service.py
+- create_document():
+  - Tao record Document trong database (title, file_name, file_type, raw_text)
+  - Goi split_chapters() de chia raw_text thanh cac chapter
+  - Tao record Chapter trong database cho tung chuong
+
+File: backend/app/nlp/chapter_splitter.py
+- split_chapters():
+  - Tach text thanh tung dong (splitlines)
+  - Duyet tung dong, phat hien heading theo pattern:
+      + "Chapter X", "Chuong X", so thu tu "1. ", "I. "
+      + Viet hoa toan bo (IS UPPER) 1-10 tu
+      + Gioi han do dai < 120 ky tu
+  - Dong thoi tach paragraph (split_paragraphs) va dem cau (split_sentences)
+  - Tra ve list dict: title, raw_text, paragraph_count, sentence_count
+
+File: backend/app/nlp/paragraph_splitter.py
+- split_paragraphs():
+  - Tach text theo khoang trang >= 2 dong (\n\s*\n+)
+  - Loai bo block rong
+
+================================================================================
+
+[BUOC 4] SUMMARIZE - TOM TAT VAN BAN
+-------------------------------------
+Khi nguoi dung yeu cau tom tat (POST /summarize), he thong tao summary.
+
+File: backend/app/routes/summarize.py
+- Endpoint: POST /summarize
+- Nhan payload: document_id, chapter_id (optional), level (short/medium/long)
+- Neu co chapter_id: goi summarize_chapter()
+- Neu khong: goi summarize_document()
+
+File: backend/app/services/summary_service.py
+- summarize_chapter() / summarize_document():
+  - Kiem tra cache (Summary table) - neu da co thi tra ve
+  - Lay text tu Chapter hoac ghép tat ca Chapters
+  - Goi summarize_extractive() trong keyword_scorer
+  - Luu vao bang Summary, commit DB
+
+File: backend/app/nlp/keyword_scorer.py
+- summarize_extractive(text, level):
+  a) Tach cau: split_sentences() -> danh sach cau
+  b) Tokenize: tokenize() -> lower, chi lay chu va so [a-zA-Z0-9]+
+  c) Filter stopwords: loc bo stopwords (the, a, is, va...) va tu ngan < 2 ky tu
+  d) Dem tan so: Counter -> frequency map
+  e) Cham diem tung cau (score_sentence):
+      - Keyword score = trung binh cong tan so cac tu trong cau
+      - Length score = 1.0 neu 4-30 tu, 0.7 neu >30, 0.4 neu <4
+      - Position score = 1.15 (cau dau), 0.95 (cau cuoi), 1.0 (giua)
+      - Final score = keyword * length * position
+  f) Chon top cau theo ti le:
+      - short  -> 20% so cau
+      - medium -> 35% so cau
+      - long   -> 50% so cau
+  g) Sap xep lai theo thu tu goc trong van ban
+  h) Tra ve chuoi summary
+
+File: backend/app/nlp/sentence_splitter.py
+- split_sentences():
+  - Regex: (?<=[.!?])\s+|\n+ -> tach theo dau cau . ! ? hoac xuong dong
+
+File: backend/app/nlp/tokenizer.py
+- tokenize(): tach text thanh tokens, lower(), chi giu chu cai va so
+- filter_tokens(): loai bo stopwords va tu 1 ky tu
+
+================================================================================
+
+[BUOC 5] EVALUATE - DANH GIA SUMMARY
+------------------------------------
+Khi nguoi dung yeu cau danh gia (POST /evaluate/summary), he thong 
+tao summary o ca 3 muc do va tra ve chi tiet so sanh.
+
+File: backend/app/routes/evaluation.py
+- Endpoint: POST /evaluate/summary
+- Nhan payload: document_id, chapter_id (optional)
+- Goi evaluate_summary()
+
+File: backend/app/services/evaluation_service.py
+- evaluate_summary():
+  - Lay text tu Chapter hoac document (ghep Chapters)
+  - Goi evaluate_text_levels()
+
+- evaluate_text_levels():
+  - Dem so cau, so tu van ban goc (split_sentences, count_words)
+  - Moi level (short/medium/long):
+      + Tao summary bang summarize_extractive()
+      + Do thoi gian xu ly (time.perf_counter)
+      + Dem so cau, so tu trong summary
+      + Tinh compression_ratio = summary_word_count / original_word_count
+  - Luu ket qua ra file JSONL (evaluation_logs.jsonl)
+  - Tra ve EvaluationResponse chua:
+      + document_id, chapter_id, scope, title
+      + Danh sach 3 LevelEvaluationResult:
+          * level, summary_text, processing_time_ms
+          * original_sentence_count, summary_sentence_count
+          * original_word_count, summary_word_count
+          * compression_ratio
+
+================================================================================
+BANG TOM TAT CAC FILE THEO CHUC NANG
+================================================================================
+
+DANG KY ROUTE (API endpoints):
+  backend/app/main.py                    - FastAPI app, include router
+  backend/app/api/router.py               - Tong hop cac router
+  backend/app/routes/upload.py            - POST /upload
+  backend/app/routes/summarize.py         - POST /summarize
+  backend/app/routes/evaluation.py       - POST /evaluate/summary
+  backend/app/routes/documents.py         - GET /documents, /chapters
+
+SERVICE (Business logic):
+  backend/app/services/file_service.py    - Luu file, goi parser
+  backend/app/services/document_service.py - Tao document, chia chapters
+  backend/app/services/summary_service.py  - Tao summary, kiem tra cache
+  backend/app/services/evaluation_service.py - Danh gia summary nhieu muc do
+
+NLP (Xu ly ngon ngu tu nhien):
+  backend/app/nlp/chapter_splitter.py     - Chia van ban thanh chapters
+  backend/app/nlp/paragraph_splitter.py  - Tach van ban thanh paragraphs
+  backend/app/nlp/sentence_splitter.py   - Tach van ban thanh cau
+  backend/app/nlp/tokenizer.py            - Tokenize, loc stopwords
+  backend/app/nlp/keyword_scorer.py      - Cham diem cau, tom tat extractive
+
+PARSER (Doc file):
+  backend/app/parsers/parser_factory.py  - Factory chon parser
+  backend/app/parsers/base_parser.py      - Abstract base class
+  backend/app/parsers/pdf_parser.py       - Doc file PDF (PyMuPDF)
+  backend/app/parsers/docx_parser.py      - Doc file DOCX (python-docx)
+  backend/app/parsers/txt_parser.py       - Doc file TXT
+
+MODELS & SCHEMAS (Database):
+  backend/app/models/document.py          - Bang Document
+  backend/app/models/chapter.py            - Bang Chapter
+  backend/app/models/summary.py            - Bang Summary
+  backend/app/schemas/document.py          - Pydantic DocumentCreate/Response
+  backend/app/schemas/chapter.py          - Pydantic ChapterResponse
+  backend/app/schemas/summary.py          - Pydantic SummaryRequest/Response
+  backend/app/schemas/evaluation.py        - Pydantic EvaluationRequest/Response
+
+CONFIG & DATABASE:
+  backend/app/core/config.py              - Cau hinh (UPLOAD_DIR, ALLOWED_EXTENSIONS...)
+  backend/app/db/session.py                - Session DB, get_db dependency
+  backend/app/db/init_db.py                - Khoi tao database
+
+================================================================================
+END
+================================================================================

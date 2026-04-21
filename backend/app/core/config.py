@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 20
     ALLOWED_EXTENSIONS: str = ".txt,.pdf,.docx"
 
+    LOG_DIR: str = "logs"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore"

@@ -50,7 +50,7 @@ button {
   color: white;
   padding: 12px 18px;
   border-radius: 12px;
-  font-weight: 600;
+  font-weight: 700;
   min-width: 140px;
 }
 
@@ -67,15 +67,24 @@ button {
   border: 1px solid #fecaca;
 }
 
-.grid {
+.reader-layout {
   display: grid;
-  grid-template-columns: 280px 320px 1fr;
+  grid-template-columns: 380px 1fr;
   gap: 18px;
   align-items: start;
 }
 
-.panel,
-.main-panel {
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: sticky;
+  top: 18px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+
+.content-area {
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -88,21 +97,24 @@ button {
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
-.main-panel .panel {
-  min-height: 300px;
-}
-
-.panel-header {
+.panel-header,
+.reader-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
-.panel-header h2 {
+.panel-header h2,
+.reader-header h2 {
   margin: 0;
   font-size: 20px;
+}
+
+.reader-header p {
+  margin: 6px 0 0;
+  color: #6b7280;
 }
 
 .badge {
@@ -111,7 +123,7 @@ button {
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .list {
@@ -120,8 +132,14 @@ button {
   gap: 10px;
 }
 
+.toc-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
 .list-item {
   text-align: left;
+  width: 100%;
   border: 1px solid #e5e7eb;
   background: #f8fafc;
   padding: 12px;
@@ -148,52 +166,54 @@ button {
   color: #6b7280;
 }
 
-.reader-meta h3 {
-  margin: 0 0 6px;
-  font-size: 24px;
+.reader-panel {
+  min-height: 600px;
 }
 
-.reader-meta p {
-  margin: 0 0 16px;
-  color: #6b7280;
+.document-content {
+  line-height: 1.8;
+  font-size: 16px;
 }
 
-.reader-content {
-  white-space: pre-line;
-  line-height: 1.75;
-  font-size: 15px;
+.text-block {
+  padding: 8px 0 18px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.reader-content p {
-  margin: 0 0 14px;
+.text-block p {
+  margin: 0 0 12px;
+}
+
+.load-more-trigger,
+.end-text {
+  text-align: center;
+  color: #64748b;
+  padding: 24px;
+  font-weight: 600;
 }
 
 .summary-controls {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
 }
 
 .summary-controls select {
-  width: 180px;
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid #d1d5db;
   background: white;
 }
 
-.button-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
 .primary-btn,
-.secondary-btn {
+.secondary-btn,
+.outline-btn {
   border: none;
   border-radius: 12px;
   padding: 10px 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .primary-btn {
@@ -206,14 +226,26 @@ button {
   color: white;
 }
 
+.outline-btn {
+  background: white;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+}
+
+.full-width {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
 .primary-btn:disabled,
-.secondary-btn:disabled {
+.secondary-btn:disabled,
+.outline-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
 .summary-box {
-  min-height: 140px;
+  min-height: 120px;
   background: #f8fafc;
   border: 1px solid #e5e7eb;
   border-radius: 14px;
@@ -225,9 +257,14 @@ button {
   color: #6b7280;
 }
 
-@media (max-width: 1180px) {
-  .grid {
+@media (max-width: 1100px) {
+  .reader-layout {
     grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    max-height: none;
   }
 
   .topbar {

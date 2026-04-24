@@ -11,6 +11,7 @@ from app.services.document_service import create_document
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
+
 @router.post("", response_model=DocumentResponse)
 def upload_file(
     file: UploadFile = File(...),
@@ -21,22 +22,30 @@ def upload_file(
 
     try:
         print(f"[UPLOAD] file: {file.filename}")
-        
+
         save_path, file_ext = save_upload_file(file)
         print(f"[UPLOAD] save_path: {save_path}, file_ext: {file_ext}")
 
-        raw_text = parse_file(save_path, file_ext)
-        print(f"[UPLOAD] raw_text: {raw_text}")
+        file_type = file_ext.replace(".", "").lower()
+
+        layout = None
+
+        if file_type == "pdf":
+            from app.services.layout_service import inspect_pdf_layout
+            layout = inspect_pdf_layout(save_path)
+            raw_text = layout.get("raw_text", "")
+        else:
+            raw_text = parse_file(save_path, file_ext)
+
         payload = DocumentCreate(
             title=os.path.splitext(file.filename)[0],
             file_name=file.filename,
-            file_type=file_ext.replace(".", ""),
+            file_type=file_type,
             file_path=save_path,
             raw_text=raw_text,
         )
 
-        document = create_document(db, payload)
-        print(f"[UPLOAD] document: {document}")
+        document = create_document(db, payload, layout_json=layout)
         return document
 
     except HTTPException:
@@ -50,5 +59,3 @@ def upload_file(
             status_code=500,
             detail=f"Failed to upload and parse file: {str(e)}"
         ) from e
-
-

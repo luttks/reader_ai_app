@@ -19,6 +19,7 @@ class DocumentResponse(BaseModel):
     file_type: str
     file_path: str
     raw_text: str
+    layout_json: dict | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

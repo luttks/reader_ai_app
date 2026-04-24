@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import String, Integer, DateTime, Text
+from sqlalchemy import String, Integer, DateTime, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -15,6 +15,8 @@ class Document(Base):
     file_type: Mapped[str] = mapped_column(String(20), nullable=False)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     raw_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    # Cached layout - parsed once at upload time, served from DB on every GET
+    layout_json: Mapped[dict | None] = mapped_column(JSON, default=None, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -27,3 +29,5 @@ class Document(Base):
         cascade="all, delete-orphan",
         order_by="Chapter.chapter_index"
     )
+
+    
